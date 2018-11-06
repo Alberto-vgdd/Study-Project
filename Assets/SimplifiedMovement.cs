@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour 
+public class SimplifiedMovement : MonoBehaviour 
 {
 	[Header("Character Configuration")]
 	public float baseSpeed = 4f;
@@ -37,9 +37,7 @@ public class PlayerMovement : MonoBehaviour
 	private int layerMask;
 
 	// Ground Parameters
-	public bool closeToGround;
-	public bool grounded;
-	public bool sliding;
+	public bool isGrounded;
 	public bool jumping;
 	private Vector3 groundNormal;
 
@@ -69,17 +67,17 @@ public class PlayerMovement : MonoBehaviour
 
 	void Update()
 	{
+		// inputJump acts as a flag because the jump is performed in FixedUpdate()
+		if (Input.GetButton(InputAxis.Jump)) { inputJump = true;}
+	}
+
+	void FixedUpdate()
+	{
 		// Limit the movement to a maximum magnitude of 1f.
 		inputMovement.x = Input.GetAxis(InputAxis.HorizontalMovement);
 		inputMovement.y = Input.GetAxis(InputAxis.VerticalMovement);
 		Vector2.ClampMagnitude(inputMovement, 1f);
-
-		// inputJump acts as a flag because the jump is performed in FixedUpdate()
-		if (Input.GetButton(InputAxis.Jump)) { inputJump = true;}
-
-		// Just a boolean used as modifier.
-		inputRun = Input.GetButton(InputAxis.Run);
-
+		
 		// Determine movement axes
 		if (!GlobalData.IsEnemyLocked)
 		{
@@ -92,31 +90,30 @@ public class PlayerMovement : MonoBehaviour
             movementHorizontal = Vector3.Cross( Vector3.up, movementVertical).normalized;
 		}
 		movementDirection = movementHorizontal * inputMovement.x + movementVertical * inputMovement.y;
-	}
 
-	void FixedUpdate()
-	{
+		// Just a boolean used as modifier.
+		inputRun = Input.GetButton(InputAxis.Run);
+
+
+
+
+
 		movementSpeed = (inputRun) ? baseSpeed*runMultiplier: baseSpeed;
 		capsuleCenter = rigidbody.position + capsuleCollider.center;
 
-		closeToGround = false;
-		grounded = false;
-		sliding = false;
+		
 
+
+		// Ground Test
+		isGrounded = false;
+		bool isSliding = false;
 		rigidbodyBeneath = null;
-
 		groundNormal = Vector3.zero;
-
-
-		// Ground Test. If there's no platform below at a max. distance of a step,
-		// then the character is not grounded. if there's it doesn't necessarily implies 
-		// that the user is touching the ground, it is just close to it.
 		RaycastHit[] hits = CapsuleCastAll(Vector3.down,radius);
+		
 
 		if (hits.Length > 0) 
 		{
-			closeToGround = true;
-
 			// If any of the platforms below the player is close enough to the origin
 			// of the bottom sphere, it means that is completely grounded.
 			Vector3 point2 = capsuleCenter - pointOffset;
@@ -124,17 +121,15 @@ public class PlayerMovement : MonoBehaviour
 			{
 				if ((hit.point - point2).magnitude < radius+0.01f )
 				{
-					grounded = true;
+					isGrounded = true;
 					jumping = false;
-
 					groundNormal = hit.normal;
-			
-					if (Vector3.Angle(Vector3.up,groundNormal) >= 45f )
+
+					if (Vector3.Angle(groundNormal,Vector3.up) >= 45f)
 					{
-						sliding = true;
+						isSliding = true;
 					}
 
-					
 					if (hit.rigidbody != null)
 					{
 						rigidbodyBeneath = hit.rigidbody;
@@ -148,21 +143,24 @@ public class PlayerMovement : MonoBehaviour
 						}
 						else
 						{
+							//
 							positionBeneath = Vector3.zero;
 						}
+					}
+					else
+					{
+						//
+						positionBeneath = Vector3.zero;
 					}
 
 					break;
 				}
 			}
 		}
-
-
-
-		// Project movementDirection on groundNormal
-		if(grounded && !jumping && inputMovement.magnitude > 0)
+		else
 		{
-			movementDirection = Vector3.ProjectOnPlane(movementDirection, groundNormal);
+			//
+			positionBeneath = Vector3.zero;			
 		}
 
 		// Constraint Movement Direction
@@ -172,7 +170,7 @@ public class PlayerMovement : MonoBehaviour
 
 			foreach(RaycastHit hit in hits)
 			{
-				if ( Vector3.Angle(Vector3.up,hit.normal)>=45f)
+				if (Vector3.Angle(Vector3.up,hit.normal)>=45f )
 				{
 					movementDirection -= Vector3.Project(movementDirection,Vector3.ProjectOnPlane(hit.normal,Vector3.up).normalized);
 				}
@@ -182,18 +180,12 @@ public class PlayerMovement : MonoBehaviour
 		}
 
 		// Apply velocity
-		rigidbody.velocity = movementDirection*movementSpeed + Vector3.up*rigidbody.velocity.y;
+		rigidbody.velocity = movementDirection*movementSpeed +  Vector3.up*rigidbody.velocity.y;
 
 		// Project Velocity Direction
-		if (grounded && !jumping )
+		if (isGrounded && !jumping )
 		{
 			rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, groundNormal);
-
-			if (sliding)
-            {  
-				rigidbody.velocity -= Vector3.Project(rigidbody.velocity, Vector3.ProjectOnPlane(groundNormal,Vector3.up));
-                rigidbody.velocity = new Vector3(rigidbody.velocity.x,  -5f, rigidbody.velocity.z);
-            }
 		}
 
 		// Apply beneath platform's velocity & rotation
@@ -214,15 +206,24 @@ public class PlayerMovement : MonoBehaviour
 		{
 			inputJump = false;
 			
-			if (grounded && !sliding)
+			if (isGrounded && !isSliding)
 			{
-				rigidbody.velocity += Vector3.up*jumpSpeed;
+				// If the player is not moving, use a regular jump
+				if (inputMovement.Equals(Vector3.zero))
+				{
+					rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, Vector3.up) + Vector3.up*jumpSpeed;
+				}
+				// otherwise, make the jump ground dependent
+				else
+				{
+					rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, groundNormal) + groundNormal*jumpSpeed;
+				}
 				jumping = true;
 			}
 		}
 
 		// Gravity
-		rigidbody.AddForce(Physics.gravity*gravityMultiplier, ForceMode.Acceleration);
+ 		rigidbody.AddForce(Physics.gravity*gravityMultiplier, ForceMode.Acceleration);
 
 		// Rotate the character
 		Quaternion targetRotation = Quaternion.RotateTowards(rigidbody.rotation,Quaternion.LookRotation(Vector3.ProjectOnPlane(movementDirection,Vector3.up),Vector3.up),rotationSpeed*360f*Time.fixedDeltaTime);
@@ -235,29 +236,15 @@ public class PlayerMovement : MonoBehaviour
 			rigidbody.AddTorque(rotation.x / Time.fixedDeltaTime, rotation.y / Time.fixedDeltaTime, rotation.z / Time.fixedDeltaTime, ForceMode.VelocityChange);
 		}
 	
-		
-
 		// Stop additional rotation.
 		rigidbody.angularVelocity = Vector3.zero;
-
-		// Update Animations
-        animator.SetBool("Fall", !closeToGround);
-        animator.SetBool("Slide", sliding);        
-        animator.SetFloat("Walk Speed", movementDirection.magnitude*movementSpeed/(baseSpeed*runMultiplier)); 
 	}
 	
 	RaycastHit[] CapsuleCastAll(Vector3 direction, float distance)
 	{
-		return OptimizedCast.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask); 
+		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask); 
 	}
 }
 
-// Rotation when sliding (Currently not facing the slope)
 
-// Step walking, look at the old script, check how the "wrong sliding state" was fixed there
-
-// Fix a teleport that appears when landing after a jump while moving.
-// Constraing velocity after adding the beneath platforms's. (Similarly to constraint movement direction, right after adding it).
-// Elevator
-
-// Antimation: Only transition to  landing  if the player is not also sliding
+// Mirar lo de las plataformas debajo del jugador. Se puede intentar simplificar el código guardando el último rigidbody.

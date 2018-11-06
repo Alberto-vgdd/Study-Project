@@ -57,14 +57,13 @@ public class PlayerMovementScript : MonoBehaviour
     Vector3 point1;
     Vector3 point2;
     float radius;
-    float radiusScale = 0.95f;
+    float radiusScale = 0.99f;
 
-    [HideInInspector]
+
     public bool playerCloseToGround;
-    private bool playerJumping;
-    [HideInInspector]
+    public bool playerJumping;
     public bool playerSliding;
-    private bool playerGrounded;
+    public bool playerGrounded;
 
     Vector3 groundNormal;
     float groundAngle;
@@ -107,8 +106,8 @@ public class PlayerMovementScript : MonoBehaviour
     void Start()
     {
         cameraTransform = GlobalData.PlayerCamera.transform;
-        environmentLayerMask = 1 << (int) Mathf.Log(GlobalData.EnvironmentLayerMask.value,2);
-        enemiesLayerMask = 1 << (int) Mathf.Log(GlobalData.EnemiesLayerMask.value,2);
+        environmentLayerMask = GlobalData.EnvironmentLayerMask.value;
+        enemiesLayerMask = GlobalData.EnemiesLayerMask.value;
 
         inputEnabled = true;
     }
@@ -322,7 +321,7 @@ public class PlayerMovementScript : MonoBehaviour
                 }
 
                 // Check if the character is grounded
-                if ( !playerGrounded && (capsulecastHitArray[i].distance*groundNormal).y < 0.05f)
+                if ( !playerGrounded && (capsulecastHitArray[i].point - point2).magnitude < radius+0.01f)
                 {
                     playerGrounded = true;
                 }

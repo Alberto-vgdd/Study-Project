@@ -6,9 +6,9 @@ public static class OptimizedCast
 {
     public static RaycastHit[] CapsuleCastAll(Vector3 point1, Vector3 point2, float radius, Vector3 direction, float distance, int layermask)
     {
-        Vector3 optPoint1 = point1 - direction * radius;
-        Vector3 optPoint2 = point2 - direction * radius;
-        float optDistance = distance + radius;
+        Vector3 optPoint1 = point1 - direction * radius*2;
+        Vector3 optPoint2 = point2 - direction * radius*2;
+        float optDistance = distance + radius*2;
 
         RaycastHit[] hits = Physics.CapsuleCastAll(optPoint1, optPoint2, radius, direction, optDistance, layermask);
 
