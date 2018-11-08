@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class SimplifiedMovement : MonoBehaviour 
@@ -37,13 +38,15 @@ public class SimplifiedMovement : MonoBehaviour
 	private int layerMask;
 
 	// Ground Parameters
-	public bool isGrounded;
-	public bool jumping;
+	private bool isGrounded;
+	private bool isSliding;
+	public bool isJumping;
 	private Vector3 groundNormal;
 
-	// Other
-	private Rigidbody rigidbodyBeneath;
-	private Vector3 positionBeneath;
+	// External forces/Movemnent
+	private Rigidbody beneathRigidbody;
+	private Vector3 beneathPosition;
+	private List<Rigidbody> externalRigidbodies;
 
 
     void Awake()
@@ -55,11 +58,14 @@ public class SimplifiedMovement : MonoBehaviour
 
 	void Start()
 	{
-		// Initialise the common capsule casts parameters
+		// Initialize the common capsule casts parameters
 		radius = capsuleCollider.radius;
 		radiusScale = 0.99f;
 		pointOffset = Vector3.up*( capsuleCollider.height / 2 - radius);
 		layerMask = GlobalData.EnvironmentLayerMask.value;
+
+		// Initialize other variables
+		externalRigidbodies = new List<Rigidbody>();
 
 		// Get External variables
 		camera = GlobalData.PlayerCamera.transform;
@@ -95,73 +101,49 @@ public class SimplifiedMovement : MonoBehaviour
 		inputRun = Input.GetButton(InputAxis.Run);
 
 
-
-
-
 		movementSpeed = (inputRun) ? baseSpeed*runMultiplier: baseSpeed;
 		capsuleCenter = rigidbody.position + capsuleCollider.center;
-
+		Vector3 point2 = capsuleCenter - pointOffset;
 		
 
 
 		// Ground Test
-		isGrounded = false;
-		bool isSliding = false;
-		rigidbodyBeneath = null;
-		groundNormal = Vector3.zero;
-		RaycastHit[] hits = CapsuleCastAll(Vector3.down,radius);
-		
-
+		// If any of the platforms below the player is close enough to the origin
+		// of the bottom sphere, it means that is completely grounded. 
+		RaycastHit[] hits = CapsuleCastAll(Vector3.down,radius).Where( hit => (hit.point - point2).magnitude < radius+0.01f ).ToArray();
 		if (hits.Length > 0) 
 		{
-			// If any of the platforms below the player is close enough to the origin
-			// of the bottom sphere, it means that is completely grounded.
-			Vector3 point2 = capsuleCenter - pointOffset;
-			foreach(RaycastHit hit in hits)
+			// Use the closest platform as ground and update the required variables.
+			RaycastHit hit = hits[0];
+			isGrounded = true;
+			isJumping = false;
+			groundNormal = hit.normal;
+			
+			//  Check if the character should slide.
+			isSliding = (Vector3.Angle(groundNormal,Vector3.up) >= 45f);
+
+			// Set the variables needed to copy the platform's movement.
+			// The position is updated if the character stays still on the platform. (Otherwise, it will move if the platform is rotating)
+			beneathRigidbody = hit.rigidbody;
+			if ( beneathRigidbody != null && beneathPosition.Equals(Vector3.zero) && inputMovement.magnitude < 0.01f)
 			{
-				if ((hit.point - point2).magnitude < radius+0.01f )
-				{
-					isGrounded = true;
-					jumping = false;
-					groundNormal = hit.normal;
-
-					if (Vector3.Angle(groundNormal,Vector3.up) >= 45f)
-					{
-						isSliding = true;
-					}
-
-					if (hit.rigidbody != null)
-					{
-						rigidbodyBeneath = hit.rigidbody;
-
-						if ( inputMovement.magnitude < 0.01f )
-						{
-							if (positionBeneath == Vector3.zero)
-							{
-								positionBeneath = hit.transform.InverseTransformPoint(rigidbody.position);	
-							}
-						}
-						else
-						{
-							//
-							positionBeneath = Vector3.zero;
-						}
-					}
-					else
-					{
-						//
-						positionBeneath = Vector3.zero;
-					}
-
-					break;
-				}
+				beneathPosition = hit.transform.InverseTransformPoint(rigidbody.position);	
+			}
+			else if (beneathRigidbody == null || inputMovement.magnitude >= 0.01f)
+			{
+				beneathPosition = Vector3.zero;
 			}
 		}
 		else
 		{
-			//
-			positionBeneath = Vector3.zero;			
+			isGrounded = false;
+			isSliding = false;
+			groundNormal = Vector3.zero;
+
+			beneathRigidbody = null;
+			beneathPosition = Vector3.zero;	
 		}
+
 
 		// Constraint Movement Direction
 		if (inputMovement.magnitude > 0)
@@ -180,27 +162,33 @@ public class SimplifiedMovement : MonoBehaviour
 		}
 
 		// Apply velocity
-		rigidbody.velocity = movementDirection*movementSpeed +  Vector3.up*rigidbody.velocity.y;
+		rigidbody.velocity = movementDirection*movementSpeed + Vector3.up*rigidbody.velocity.y;
 
 		// Project Velocity Direction
-		if (isGrounded && !jumping )
+		if (isGrounded && !isJumping )
 		{
 			rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, groundNormal);
 		}
 
-		// Apply beneath platform's velocity & rotation
-		if (rigidbodyBeneath != null)
+		// Apply external rigidbodies horizontal velocities.
+		foreach( Rigidbody externalRigidbody in externalRigidbodies)
 		{
-			rigidbody.velocity += rigidbodyBeneath.velocity;
+			rigidbody.velocity += Vector3.ProjectOnPlane(externalRigidbody.velocity,Vector3.up);
+		}
+		// Apply beneath platform's rotation and vertical movement (Because only the beneath platform affects the player's y)
+		if (beneathRigidbody != null)
+		{
+			// PROBLEM Player stick to elevator when ascending
+			rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity,Vector3.up) + Vector3.up*beneathRigidbody.velocity.y;
 			
 			if ( inputMovement.magnitude < 0.01f )
 			{
-				rigidbody.rotation = rigidbody.rotation*Quaternion.Euler(rigidbodyBeneath.angularVelocity);
-				rigidbody.velocity += (rigidbodyBeneath.transform.TransformPoint(positionBeneath) - rigidbody.position) / Time.fixedDeltaTime;;
+				rigidbody.rotation = rigidbody.rotation*Quaternion.Euler(beneathRigidbody.angularVelocity*Mathf.Rad2Deg*Time.fixedDeltaTime);
+				rigidbody.velocity += (beneathRigidbody.transform.TransformPoint(beneathPosition) - rigidbody.position) / Time.fixedDeltaTime;
 			}
 				
 		}
-		
+
 		// Jump
 		if (inputJump)
 		{
@@ -208,17 +196,9 @@ public class SimplifiedMovement : MonoBehaviour
 			
 			if (isGrounded && !isSliding)
 			{
-				// If the player is not moving, use a regular jump
-				if (inputMovement.Equals(Vector3.zero))
-				{
-					rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, Vector3.up) + Vector3.up*jumpSpeed;
-				}
-				// otherwise, make the jump ground dependent
-				else
-				{
-					rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity, groundNormal) + groundNormal*jumpSpeed;
-				}
-				jumping = true;
+				// Add a jump force. If it is falling, counter the negative vertical speed.
+				rigidbody.velocity += Vector3.up*(Mathf.Max(jumpSpeed, jumpSpeed-rigidbody.velocity.y));
+				isJumping = true;
 			}
 		}
 
@@ -244,7 +224,25 @@ public class SimplifiedMovement : MonoBehaviour
 	{
 		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask); 
 	}
+
+
+
+	void OnCollisionEnter(Collision collision)
+	{
+		if (collision.rigidbody != null)
+		{
+			externalRigidbodies.Add(collision.rigidbody);
+		}
+	}
+
+	void OnCollisionExit(Collision collision)
+	{
+		if (collision.rigidbody != null )
+		{
+			externalRigidbodies.Remove(collision.rigidbody);
+		}	
+	}
 }
 
-
-// Mirar lo de las plataformas debajo del jugador. Se puede intentar simplificar el código guardando el último rigidbody.
+// PROBLEM Player stick to elevator when ascending
+// is related to the normal of the platform and the way v. velocity is added.

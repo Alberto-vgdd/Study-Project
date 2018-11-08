@@ -48,6 +48,7 @@ public class FallingPlatform : MonoBehaviour
     {
         if (collision.gameObject.CompareTag(playerTag) && !isUsed)
         {
+            platformRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             waitTimer = 0f;
             isUsed = true;
         }
@@ -68,6 +69,7 @@ public class FallingPlatform : MonoBehaviour
 
                 if (fallTimer > fallTime)
                 {
+                     platformRigidbody.interpolation = RigidbodyInterpolation.None;
                     platformRigidbody.MovePosition(originalPosition);
                     isUsed = false;
                     isFalling = false;

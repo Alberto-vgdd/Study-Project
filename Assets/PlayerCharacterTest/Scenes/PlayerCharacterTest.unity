@@ -297,7 +297,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 4967183684414854, guid: e42207c6865dd48208787aa288249c19, type: 2}
       propertyPath: m_LocalPosition.y
-      value: 0.5
+      value: 1.32
       objectReference: {fileID: 0}
     - target: {fileID: 4967183684414854, guid: e42207c6865dd48208787aa288249c19, type: 2}
       propertyPath: m_LocalPosition.z
@@ -326,7 +326,7 @@ Prefab:
     - target: {fileID: 114581187382964720, guid: e42207c6865dd48208787aa288249c19,
         type: 2}
       propertyPath: speed
-      value: 0.23
+      value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 54640906203551032, guid: e42207c6865dd48208787aa288249c19,
         type: 2}
@@ -339,6 +339,10 @@ Prefab:
       value: 
       objectReference: {fileID: 13400000, guid: 003b8d63200e15c44a78b56c5f3120c5,
         type: 2}
+    - target: {fileID: 4967183684414854, guid: e42207c6865dd48208787aa288249c19, type: 2}
+      propertyPath: m_LocalScale.y
+      value: 5
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e42207c6865dd48208787aa288249c19, type: 2}
   m_IsPrefabAsset: 0
@@ -630,8 +634,7 @@ MonoBehaviour:
   gravityMultiplier: 3
   maxFallingSpeed: 12.5
   rotationSpeed: 5
-  isGrounded: 0
-  jumping: 0
+  isJumping: 0
 --- !u!33 &710207165
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -797,6 +800,11 @@ Prefab:
         type: 2}
       propertyPath: m_Interpolate
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 54635914104176384, guid: 7e40758a1e61bcc4d8eae3e115fc4dee,
+        type: 2}
+      propertyPath: m_CollisionDetection
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7e40758a1e61bcc4d8eae3e115fc4dee, type: 2}
