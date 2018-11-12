@@ -38,8 +38,8 @@ public class SimplifiedMovement : MonoBehaviour
 	private int layerMask;
 
 	// Ground Parameters
-	private bool isGrounded;
-	private bool isSliding;
+	public bool isGrounded;
+	public bool isSliding;
 	public bool isJumping;
 	private Vector3 groundNormal;
 
@@ -47,6 +47,7 @@ public class SimplifiedMovement : MonoBehaviour
 	private Rigidbody beneathRigidbody;
 	private Vector3 beneathPosition;
 	private List<Rigidbody> externalRigidbodies;
+
 
 
     void Awake()
@@ -109,21 +110,17 @@ public class SimplifiedMovement : MonoBehaviour
 
 
 		// Ground Test
+		// If there is a platform closer than 0.5f, the character is not falling but it is not grounded either.
 		// If any of the platforms below the player is close enough to the origin
 		// of the bottom sphere, it means that is completely grounded. 
-		RaycastHit[] hits = CapsuleCastAll(Vector3.down,0.1f);
-		
-		if (hits.Length > 0) 
+		RaycastHit hit;
+		if (CapsuleCast(Vector3.down,0.01f, out hit))
 		{
 			// Use the closest platform as ground and update the required variables.
-			RaycastHit hit = hits[0];
 			isGrounded = true;
 			isJumping = false;
 			groundNormal = hit.normal;
 			
-			//  Check if the character should slide.
-			isSliding = (Vector3.Angle(groundNormal,Vector3.up) >= 45f);
-
 			// Set the variables needed to copy the platform's movement.
 			// The position is updated if the character stays still on the platform. (Otherwise, it will move if the platform is rotating)
 			beneathRigidbody = hit.rigidbody;
@@ -139,34 +136,32 @@ public class SimplifiedMovement : MonoBehaviour
 		else
 		{
 			isGrounded = false;
-			isSliding = false;
 			groundNormal = Vector3.up;
-
-
+			beneathPosition = Vector3.zero;
 			beneathRigidbody = null;
-			beneathPosition = Vector3.zero;	
 		}
+		
+
 
 		// Constraint Movement Direction
+		RaycastHit[] hits;
 		if (inputMovement.magnitude > 0)
 		{
 			hits = CapsuleCastAll(movementDirection,movementSpeed*Time.fixedDeltaTime);
 
-			foreach(RaycastHit hit in hits)
+			foreach(RaycastHit wall in hits)
 			{
-				if (Vector3.Angle(Vector3.up,hit.normal)>=45f )
+				if (Vector3.Angle(Vector3.up,wall.normal)>=45f )
 				{
-					movementDirection -= Vector3.Project(movementDirection,Vector3.ProjectOnPlane(hit.normal,Vector3.up).normalized);
+					movementDirection -= Vector3.Project(movementDirection,Vector3.ProjectOnPlane(wall.normal,Vector3.up).normalized);
 				}
 				// We only check the first one
 				break;
 			}
 		}
+
 		// Project Movement Direction
-		if (isGrounded && !isJumping)
-		{
-			movementDirection = Vector3.ProjectOnPlane(movementDirection, groundNormal);
-		}
+		movementDirection = Vector3.ProjectOnPlane(movementDirection, groundNormal);
 
 		// Apply velocity
 		rigidbody.velocity = movementDirection*movementSpeed + Vector3.Project(rigidbody.velocity,groundNormal);
@@ -179,13 +174,12 @@ public class SimplifiedMovement : MonoBehaviour
 		// Apply beneath platform's rotation and vertical movement (Because only the beneath platform affects the player's y)
 		if (beneathRigidbody != null)
 		{
-			// PROBLEM Player stick to elevator when ascending
-			rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity,groundNormal) + groundNormal*beneathRigidbody.velocity.y;
+			rigidbody.velocity = Vector3.ProjectOnPlane(rigidbody.velocity,groundNormal) + Vector3.Project(beneathRigidbody.velocity,groundNormal);
 			
 			if ( inputMovement.magnitude < 0.01f )
 			{
 				rigidbody.rotation = rigidbody.rotation*Quaternion.Euler(beneathRigidbody.angularVelocity*Mathf.Rad2Deg*Time.fixedDeltaTime);
-				rigidbody.velocity += (beneathRigidbody.transform.TransformPoint(beneathPosition) - rigidbody.position) / Time.fixedDeltaTime;
+				rigidbody.velocity += Vector3.ProjectOnPlane((beneathRigidbody.transform.TransformPoint(beneathPosition) - rigidbody.position) / Time.fixedDeltaTime, groundNormal);
 			}
 				
 		}
@@ -228,11 +222,20 @@ public class SimplifiedMovement : MonoBehaviour
 	
 		// Stop additional rotation.
 		rigidbody.angularVelocity = Vector3.zero;
+
+		// Update Animations
+        animator.SetBool("Fall", !isGrounded);      
+        animator.SetFloat("Walk Speed", movementDirection.magnitude*movementSpeed/(baseSpeed*runMultiplier)); 
 	}
-	
+
+	bool CapsuleCast(Vector3 direction, float distance, out RaycastHit hit)
+	{
+		return Physics.CapsuleCast(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,out hit,distance + (radius - radius*radiusScale),layerMask); 
+	}
+
 	RaycastHit[] CapsuleCastAll(Vector3 direction, float distance)
 	{
-		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask); 
+		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance + (radius - radius*radiusScale),layerMask); 
 	}
 
 
@@ -254,5 +257,6 @@ public class SimplifiedMovement : MonoBehaviour
 	}
 }
 
-// Clean on ground test not to use random values.
+// Clean code.
+// Add steps.
 // Add Sliding.

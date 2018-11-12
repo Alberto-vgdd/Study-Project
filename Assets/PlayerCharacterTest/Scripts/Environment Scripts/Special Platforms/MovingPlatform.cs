@@ -72,7 +72,7 @@ public class MovingPlatform : MonoBehaviour
 			movementDirection = waypoints[nextPlatform].position - movingPlatform.position;
 		}
 
-		movingPlatform.MoveRotation(movingPlatform.rotation*Quaternion.Euler(Vector3.up*30f*Time.fixedDeltaTime));
+		movingPlatform.MoveRotation(movingPlatform.rotation*Quaternion.Euler(Vector3.up*90f*Time.fixedDeltaTime));
 	}
 
 	public void PlayerOnTop()
