@@ -34,7 +34,6 @@ public class SimplifiedMovement : MonoBehaviour
     private Vector3 capsuleCenter;
 	private Vector3 pointOffset;
 	private float radius;
-	private float radiusScale;
 	private int layerMask;
 
 	// Ground Parameters
@@ -61,8 +60,6 @@ public class SimplifiedMovement : MonoBehaviour
 	{
 		// Initialize the common capsule casts parameters
 		radius = capsuleCollider.radius;
-		radiusScale = 0.99f;
-		// HEIGHT MIGHT SOLVE THE PROBELM.
 		pointOffset = Vector3.up*(capsuleCollider.height/2- radius);
 		layerMask = GlobalData.EnvironmentLayerMask.value;
 
@@ -109,12 +106,9 @@ public class SimplifiedMovement : MonoBehaviour
 		
 
 
-		// Ground Test
-		// If there is a platform closer than 0.5f, the character is not falling but it is not grounded either.
-		// If any of the platforms below the player is close enough to the origin
-		// of the bottom sphere, it means that is completely grounded. 
+		// Ground Test 
 		RaycastHit hit;
-		if (CapsuleCast(Vector3.down,0.01f, out hit))
+		if (CapsuleCast(Vector3.down,0.75f,0.05f, out hit))
 		{
 			// Use the closest platform as ground and update the required variables.
 			isGrounded = true;
@@ -147,11 +141,11 @@ public class SimplifiedMovement : MonoBehaviour
 		RaycastHit[] hits;
 		if (inputMovement.magnitude > 0)
 		{
-			hits = CapsuleCastAll(movementDirection,movementSpeed*Time.fixedDeltaTime);
+			hits = CapsuleCastAll(movementDirection,0.75f,movementSpeed*Time.fixedDeltaTime);
 
 			foreach(RaycastHit wall in hits)
 			{
-				if (Vector3.Angle(Vector3.up,wall.normal)>=45f )
+				if (Vector3.Angle(Vector3.up,wall.normal)>=60f )
 				{
 					movementDirection -= Vector3.Project(movementDirection,Vector3.ProjectOnPlane(wall.normal,Vector3.up).normalized);
 				}
@@ -228,35 +222,34 @@ public class SimplifiedMovement : MonoBehaviour
         animator.SetFloat("Walk Speed", movementDirection.magnitude*movementSpeed/(baseSpeed*runMultiplier)); 
 	}
 
-	bool CapsuleCast(Vector3 direction, float distance, out RaycastHit hit)
+	bool CapsuleCast(Vector3 direction, float radiusScale, float distance, out RaycastHit hit)
 	{
 		return Physics.CapsuleCast(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,out hit,distance + (radius - radius*radiusScale),layerMask); 
 	}
 
-	RaycastHit[] CapsuleCastAll(Vector3 direction, float distance)
+	RaycastHit[] CapsuleCastAll(Vector3 direction, float radiusScale,float distance)
 	{
 		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance + (radius - radius*radiusScale),layerMask); 
 	}
 
 
 
-	void OnCollisionEnter(Collision collision)
-	{
-		if (collision.rigidbody != null)
-		{
-			externalRigidbodies.Add(collision.rigidbody);
-		}
-	}
+	// void OnCollisionEnter(Collision collision)
+	// {
+	// 	if (collision.rigidbody != null)
+	// 	{
+	// 		externalRigidbodies.Add(collision.rigidbody);
+	// 	}
+	// }
 
-	void OnCollisionExit(Collision collision)
-	{
-		if (collision.rigidbody != null )
-		{
-			externalRigidbodies.Remove(collision.rigidbody);
-		}	
-	}
+	// void OnCollisionExit(Collision collision)
+	// {
+	// 	if (collision.rigidbody != null )
+	// 	{
+	// 		externalRigidbodies.Remove(collision.rigidbody);
+	// 	}	
+	// }
 }
 
-// Clean code.
 // Add steps.
 // Add Sliding.
