@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour 
@@ -38,8 +39,9 @@ public class PlayerMovement : MonoBehaviour
 	private float radiusScale;
 	private int layerMask;
 
-	// Ground Parameters
-	public bool closeToGround;
+    // Ground Parameters
+    [Header("Debug Variables")]
+    public bool closeToGround;
 	public bool grounded;
 	public bool sliding;
 	public bool jumping;
@@ -164,6 +166,10 @@ public class PlayerMovement : MonoBehaviour
 					{
 						sliding = true;
 					}
+                    else
+                    {
+                        sliding = false;
+                    }
 
 					
 					if (hit.rigidbody != null)
@@ -182,8 +188,6 @@ public class PlayerMovement : MonoBehaviour
 							positionBeneath = Vector3.zero;
 						}
 					}
-
-					break;
 				}
 			}
 		}
@@ -279,8 +283,8 @@ public class PlayerMovement : MonoBehaviour
 	
 	RaycastHit[] CapsuleCastAll(Vector3 direction, float distance)
 	{
-		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask); 
-	}
+		return Physics.CapsuleCastAll(capsuleCenter+pointOffset,capsuleCenter-pointOffset,radius*radiusScale,direction,distance,layerMask);
+    }
 
 	public void DisableInput()
     {
