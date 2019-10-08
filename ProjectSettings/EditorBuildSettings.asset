@@ -9,6 +9,6 @@ EditorBuildSettings:
     path: 
     guid: 00000000000000000000000000000000
   - enabled: 1
-    path: Assets/PlayerCharacterTest/Scenes/PlayerCharacterTest.unity
+    path: Assets/Scenes/PlayerCharacterTest.unity
     guid: 0dbc057c3a4f21b4b848ba970c54a550
   m_configObjects: {}
